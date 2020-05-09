@@ -1,0 +1,167 @@
+#Taylor Bergeron
+
+shark_speed = 20#35#3.5 #35 mph
+fish_speed = 40#62.137 #62 mph, tuna
+timestep = 0
+rand_num = 0.0
+
+function init() {
+   v = stigmergy.create(1)
+   s_shark = swarm.create(1)
+   s_shark.select(id == 0)
+   s_fish = s_shark.others(2)
+   # x_pos = pose.position.x
+   # y_pos = pose.position.y
+   # yaw = pose.orientation.yaw
+   # var info = {.x = x_pos, .y = y_pos, .yaw = yaw}
+   # v.put(id, info)
+   v.put(id, 1.0)
+   timestep = 0
+   #math.rng.setseed(timestep*id)
+   math.rng.setseed(id)
+   rand_num = math.rng.uniform(0.0 , 1.0)
+
+}
+
+
+
+function step() {
+	timestep = timestep+1
+	s_shark.exec(attack_fish)
+	s_fish.exec(escape_shark)
+   # put your code here
+}
+
+function attack_fish(){
+	#
+    # x_pos = pose.position.x
+    # y_pos = pose.position.y
+    # yaw = pose.orientation.yaw
+	# var info = {.x = x_pos, .y = y_pos, .yaw = yaw}
+	# v.put(id, info)
+
+	fish_info = find_closest_fish()
+
+	#if there is a close alive fish
+	if(fish_info.id != -1){
+		log("Shark going to: ", fish_info.id)
+		log(fish_info.angle)
+		ang = fish_info.angle - pose.orientation.yaw
+		#log(ang)
+        move_x = shark_speed * math.cos(fish_info.angle)
+		move_y = shark_speed * math.sin(fish_info.angle)
+		goto(move_x,move_y)
+	}
+
+}
+
+function find_closest_fish(){
+	min_dist = 1000000.0
+	min_dist_fish_angle = 0.0
+	min_dist_fish_id = -1
+	neighbors.foreach(
+  		function(rid, data) {
+			#log("shark is neighbors with: ", rid)
+			eaten = v.get(rid)
+			if(eaten != 0.0){
+				if((data.distance<min_dist) and (rid!=0)){
+					min_dist = data.distance
+					min_dist_fish_angle = data.azimuth
+					min_dist_fish_id = rid
+			}}})
+
+	fish_info = {.dist = min_dist, .angle = min_dist_fish_angle, .id = min_dist_fish_id}
+	return fish_info
+
+}
+
+function escape_shark(){
+
+    # x_pos = pose.position.x
+    # y_pos = pose.position.y
+    # yaw = pose.orientation.yaw
+	# var info = {.x = x_pos, .y = y_pos, .yaw = yaw}
+	# v.put(id, info)
+	#
+	# id_iterator = 1
+	# while(id_iterator<21){
+	# 	if(id_iterator!=id){
+	# 		if(id==4){
+	# 			var other_fish = v.get(id_iterator)
+	# 			log(other_fish)
+	# 			log(id,": sees other fish ", id_iterator, " x position ", other_fish)
+	# 		}
+	# 	}
+	# 	id_iterator= id_iterator +1
+	# }
+	# shark_close = know_shark_close()
+	# if(shark_close==1.0){
+		#make decision on how to move
+
+	#}
+
+	shark_dist = 0
+	shark_ang = 0
+	neighbors.foreach(
+  		function(rid, data) {
+			if(rid == 0){
+				shark_dist = data.distance
+				shark_ang = data.azimuth
+			}})
+	# var my_shark_data = {.dist = shark_dist, .ang = shark_ang}
+	# v.put(id, my_shark_data)
+
+	log(id, "  ", x)
+
+	if(rand_num>0.5){
+		#log(id, ": going to shark")
+		x = fish_speed*math.cos(shark_ang+math.pi)
+		y = fish_speed*math.sin(shark_ang+math.pi)
+		goto(x,y)
+	}
+	else if(rand_num<=0.5){
+		x = fish_speed*math.cos(shark_ang)
+		y = fish_speed*math.sin(shark_ang)
+		goto(x,y)
+	}
+
+	# trajectoy = pose.orientation.yaw
+	# var new_angle = (math.pi)-(trajectoy - shark_ang)
+    # var new_vel = polar_to_vector(fish_speed, new_angle)
+    # log("trajectoy: ", trajectoy, "new angle: ", new_angle, "azimuth: ", avoid_azimuth, "new vel: ", new_vel.x, new_vel.y)
+    # set_wheels(new_vel.x, new_vel.y)
+
+}
+
+function polar_to_vector(length, angle) {
+    var vec2 = { .x = length * math.cos(angle), .y = length * math.sin(angle)}
+    return vec2
+}
+
+function know_shark_close(){
+	shark_dist = 0
+	neighbors.foreach(
+  		function(rid, data) {
+			if(rid == 0){
+				shark_dist = data.distance
+				log(id, " ", data.distance)
+			}})
+	#log("shark is ", shark_dist, " away from ", id)
+	if(shark_dist<100){
+		#can see shark_dist
+		return 1.0
+	}
+	else{
+		return 0.0
+	}
+}
+
+function reset() {
+   # put your code here
+}
+
+
+
+function destroy() {
+   # put your code here
+}
