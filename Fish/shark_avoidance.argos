@@ -23,14 +23,16 @@
         <leds                  implementation="default" medium="leds" />
       </actuators>
       <sensors>
-        <range_and_bearing implementation="medium" medium="rab" show_rays="true" />
+        <kheperaiv_proximity implementation="default" show_rays="false" />
+        <range_and_bearing implementation="medium" medium="rab" show_rays="false" />
         <kheperaiv_light   implementation="rot_z_only" />
+        <positioning         implementation="default" />
       </sensors>
       <params>
         <wheel_turning hard_turn_angle_threshold="90"
                        soft_turn_angle_threshold="70"
                        no_turn_angle_threshold="10"
-                       max_speed="10" />
+                       max_speed="100" />
       </params>
     </buzz_controller_kheperaiv>
 
@@ -42,7 +44,7 @@
   <arena size="10, 10, 1" center="0,0,0.5">
 
     <light id="light"
-           position="0,0,0.5"
+           position= "4.5,-4.5,0.6"
            orientation="0,0,0"
            color="yellow"
            intensity="3.0"
@@ -71,10 +73,20 @@
         standard deviation is 360 degrees.
     -->
     <distribute>
-      <position method="uniform" min="-2,-2,0" max="2,2,0" />
+      <position method="uniform" min="-1,-1,0" max="1,1,0" />
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" />
-      <entity quantity="20" max_trials="100">
-        <kheperaiv id="kiv" rab_data_size="500">
+      <entity quantity="20" max_trials="100" base_num="1">
+        <kheperaiv id="kiv" rab_data_size="100" rab_range='1000'>
+          <controller config="shape_formation" />
+        </kheperaiv>
+      </entity>
+    </distribute>
+
+    <distribute>
+      <position method="uniform" min="-4.4,-4.4,0" max="-4.0,-4.0,0" />
+      <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" />
+      <entity quantity="1" max_trials="100">
+        <kheperaiv id="kiv" rab_data_size="100" rab_range='1000'>
           <controller config="shape_formation" />
         </kheperaiv>
       </entity>
@@ -93,7 +105,7 @@
   <!-- * Media * -->
   <!-- ********* -->
   <media>
-    <range_and_bearing id="rab" />
+    <range_and_bearing id="rab" check_occlusions ="false"/>
     <led id="leds" />
     <led id="light" />
   </media>
