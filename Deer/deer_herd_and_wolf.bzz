@@ -1,0 +1,198 @@
+#Nick St. George
+
+#deer warning signs https://www.uwsp.edu/wildlife/Ungulates/Pages/White-tailed%20Deer/White-tailed-Deer-Behavior.aspx
+
+wolf_speed = 160.9 #16.09mps, scaled down by factor of 10 #36 mph https://nywolf.org/2016/07/how-fast-do-wolves-run/
+adult_deer_speed = 178.8 #17.88mps, scaled down by factor of 10 #40 mph - The White-Tailed Deer - Zwaschka, Michael
+young_deer_speed = 134.1 #13.41mps, scaled down by factor of 10 30 mph - https://www.nationalgeographic.com/animals/mammals/w/white-tailed-deer/
+adult_deer_ratio = 0.65 # 65% of deer population - Demographic Differences in Contiguous Populations of White-Tailed Deer, https://www-jstor-org.ezpxy-web-p-u01.wpi.edu/stable/3808272
+timestep = 0
+rand_num = 0.0
+escape_limit = 11.0
+
+function init() {
+	v = stigmergy.create(1)
+	s_wolf = swarm.create(1)
+	s_wolf.select(id == 0)
+	s_deer = s_wolf.others(2)
+	v.put(id, 1.0)
+	timestep = 0
+	math.rng.setseed(id)
+	rand_num1 = math.rng.uniform(0.0 , 1.0)
+	rand_num2 = math.rng.uniform(0.0 , 1.0)
+	v.put("spook_direction", -1000000.0)
+	v.put("num_eaten", 0.0)
+	v.put("num_escaped", 0.0)
+}
+
+
+
+function step() {
+	timestep = timestep+1
+	s_wolf.exec(attack_deer)
+	s_deer.exec(escape_wolf)
+   # put your code here
+}
+
+function attack_deer(){
+	deer_info = find_closest_deer()
+	if(deer_info.id != -1.0){
+		x = wolf_speed*math.cos(deer_info.angle)
+		y = wolf_speed*math.sin(deer_info.angle)
+		goto(x,y)
+	}
+	else if(timestep > 1.0){
+		set_wheels(0.0,0.0)
+		log("all deer eaten or escaped.")
+		log(v.get("num_eaten")," deer eaten, ",v.get("num_escaped")," deer escaped.")
+	}
+
+}
+
+#finished
+function find_closest_deer(){
+	closest_deer_dist = 10000000000.0
+	closest_deer_angle = 0.0
+	closest_deer_id = -1.0
+	
+	neighbors.foreach(
+		function(rid, data) {
+			if(rid != 0){
+				prey_available = v.get(rid) #-1.0 = escaped, 0.0 = dead, 1.0 = alive but not fleeing, 2.0 = fleeing
+				if(prey_available > 0.0){
+					if(data.distance < closest_deer_dist){
+						closest_deer_dist = data.distance
+						closest_deer_angle = data.azimuth
+						closest_deer_id = rid
+					}
+					if(data.distance < 20.0){
+						v.put(rid, 0.0)
+						total_eaten = v.get("num_eaten") + 1.0
+						v.put("num_eaten", total_eaten)
+						log("wolf ate deer num: ", rid) 
+						log(total_eaten, " deer have been eaten!")
+					}
+				}
+			}	
+		}
+	)
+	closest_deer = {.dist = closest_deer_dist, .angle = closest_deer_angle, .id = closest_deer_id}
+	return closest_deer
+}
+
+#finished
+function escape_wolf(){
+	wolf_info = know_wolf_close()
+	check_escaped()
+	status = v.get(id) #-1.0 = escaped, 0.0 = dead, 1.0 = alive but not fleeing, 2.0 = fleeing
+	deer_speed = 0.0
+	if (rand_num1 < adult_deer_ratio){
+		deer_speed = young_deer_speed
+	}
+	else {
+		deer_speed = adult_deer_speed
+	}
+
+
+	if (status < 1.0){
+		if((status == -1.0) and ((math.abs(pose.position.x) < escape_limit) or (math.abs(pose.position.y) < escape_limit))){
+			goto(deer_speed,0.0)
+		}
+		set_wheels(0.0,0.0)
+	}
+	
+	else if(wolf_info.close != 0.0){
+		flee_dir = wolf_info.angle+math.pi
+		x = deer_speed*math.cos(flee_dir)
+		y = deer_speed*math.sin(flee_dir)
+		if(status == 1.0){
+			v.put(id, 2.0)
+		}
+		goto(x,y)
+	}
+	else if(status == 2.0){
+		goto(deer_speed,0.0)
+	}
+	else if((wolf_info.nearby != 0.0)){
+		flee_variation = (rand_num2 - 0.5)*math.pi*0.5
+		flee_dir = v.get("spook_direction") + flee_variation - pose.orientation.yaw
+		log(id, " also gotta flee, in dir: ", flee_dir)
+		x = deer_speed*math.cos(flee_dir)
+		y = deer_speed*math.sin(flee_dir)
+		goto(x,y)
+		if(status == 1.0){
+			v.put(id, 2.0)
+		}
+	}
+	else if(status == 1.0){
+		#if no deer around them are spooked, no wolf chasing, and aren't dead or escaping, deer will aimlessly wander about
+		rand_dir = math.pi*(math.rng.uniform(0.0 , 2.0))
+		loaf_speed = math.rng.uniform(5.0,10.0)
+		x = loaf_speed*math.cos(rand_dir)
+		y = loaf_speed*math.sin(rand_dir)
+		goto(x,y)
+	}
+}
+
+#finished
+function check_escaped(){
+	status = v.get(id) #-1.0 = escaped, 0.0 = dead, 1.0 = alive but not fleeing, 2.0 = fleeing
+	any_close = 0.0
+	if(status > 0.0){
+		if((math.abs(pose.position.x) > escape_limit) or (math.abs(pose.position.y) > escape_limit)){
+			v.put(id,-1.0)
+			total_escaped = v.get("num_escaped") + 1.0
+			v.put("num_escaped", total_escaped)
+			log("!deer num ", id, " escaped!")
+			log("x: ", pose.position.x)
+			log("y: ", pose.position.y)
+			log("z: ", pose.position.z)				
+			log(total_escaped, " deer have escaped!")
+		}
+	}
+}
+
+#finished
+function know_wolf_close(){
+	wolf_dist = 1000000000
+	wolf_angle = 0
+	wolf_close = 0.0
+	sense_range = 100.0
+	nearby_spooked = 0.0
+	neighbors.foreach(
+		function(rid, data){
+			if(rid == 0){
+				wolf_dist = data.distance
+				wolf_angle = data.azimuth
+				escape_dir = pose.orientation.yaw + wolf_angle + math.pi
+				old_spook = v.get("spook_direction")
+				if(wolf_dist < sense_range){
+					if(old_spook > -1000){
+						v.put("spook_direction", escape_dir)
+					}
+					wolf_close = 1.0
+				}
+				
+			}
+			else if (data.distance < 3.0*sense_range){	
+				other_spooked = v.get(rid) #-1.0 = escaped, 0.0 = dead, 1.0 = alive but not fleeing, 2.0 = fleeing
+				if (other_spooked > 1.0){
+					nearby_spooked = 1.0
+				}
+			}	
+		}
+	)
+	wolf_info = {.dist = wolf_dist, .angle = wolf_angle, .close = wolf_close, .nearby = nearby_spooked}
+	return wolf_info
+}
+
+
+function reset() {
+   # put your code here
+}
+
+
+
+function destroy() {
+   # put your code here
+}
